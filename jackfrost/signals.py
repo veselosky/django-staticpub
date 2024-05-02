@@ -1,17 +1,17 @@
 from django.dispatch import Signal
 
-build_started = Signal(providing_args=())
+build_started = Signal()
 
-build_finished = Signal(providing_args=())
+build_finished = Signal()
 
-reader_started = Signal(providing_args=('instance',))
+reader_started = Signal()
 
-reader_finished = Signal(providing_args=('instance',))
+reader_finished = Signal()
 
-read_page = Signal(providing_args=('instance', 'url', 'response', 'filename'))
+read_page = Signal()
 
-write_page = Signal(providing_args=('instance', 'read_result', 'write_result'))
+write_page = Signal()
 
-writer_started = Signal(providing_args=('instance',))
+writer_started = Signal()
 
-writer_finished = Signal(providing_args=('instance',))
+writer_finished = Signal()
