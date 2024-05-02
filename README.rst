@@ -1,5 +1,6 @@
-django-jackfrost 0.4.0
-======================
+Forked from kezabelle's django-jackfrost
+========================================
+Docs to come. Meanwhile, Original README from kezabelle follows:
 
 Convert your Django views into a collection of static HTML files. Or, put
 another way, a Django based static-site-generator with few opinions.
@@ -11,20 +12,6 @@ The theory is thus that you could choose a third party storage from, say,
 `django-storages`_ and plug it into ``jackfrost`` and have things Just Work.
 
 I don't actually know if that's true though.
-
-.. |travis_stable| image:: https://travis-ci.org/kezabelle/django-jackfrost.svg?branch=0.4.0
-  :target: https://travis-ci.org/kezabelle/django-jackfrost
-
-.. |travis_master| image:: https://travis-ci.org/kezabelle/django-jackfrost.svg?branch=master
-  :target: https://travis-ci.org/kezabelle/django-jackfrost
-
-
-==============  ======
-Release         Status
-==============  ======
-stable (0.4.0)  |travis_stable|
-master          |travis_master|
-==============  ======
 
 Alternatives
 ============
