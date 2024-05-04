@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "django-staticpub"
+authors = [{ name = "Vincent Veselosky", email = "vince@veselosky.com" }]
+description = "Publish static websites from Django"
+readme = "README.rst"
+requires-python = ">=3.8"
+keywords = ["django", "static", "freeze", "generator"]
+license = { text = "BSD-3-Clause" }
+classifiers = ["Framework :: Django", "Programming Language :: Python :: 3"]
+dependencies = ["django>=4.2"]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+
+[project.scripts]
+
+# ... other project metadata fields as listed in:
+#     https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
