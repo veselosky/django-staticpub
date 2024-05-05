@@ -1,22 +1,26 @@
 [build-system]
-requires = ["setuptools", "setuptools-scm", "wheel"]
+requires = ["setuptools>=66.1.1", "setuptools-scm>=7.0.5", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "django-staticpub"
-authors = [{ name = "Vincent Veselosky", email = "vince@veselosky.com" }]
+authors = [
+    { name = "Vincent Veselosky", email = "vince@veselosky.com" },
+    { name = "Keryn Knight", email = "python-package@kerynknight.com" },
+]
 description = "Publish static websites from Django"
 readme = "README.rst"
 requires-python = ">=3.8"
 keywords = ["django", "static", "freeze", "generator"]
-license = { text = "BSD-3-Clause" }
+license = { file = "LICENSE" }
 classifiers = ["Framework :: Django", "Programming Language :: Python :: 3"]
 dependencies = ["django>=4.2"]
 dynamic = ["version"]
 
-[project.optional-dependencies]
-
-[project.scripts]
-
+[tool.setuptools.dynamic]
+version = { attr = "jackfrost.version" }
 # ... other project metadata fields as listed in:
 #     https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
+
+[tool.setuptools.packages.find]
+include = ["jackfrost", "jackfrost.*"]
