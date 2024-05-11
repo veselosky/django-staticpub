@@ -1,7 +1,7 @@
 [run]
-source = jackfrost
+source = staticpub
 omit =
-    jackfrost/test_*
+    staticpub/test_*
 branch = True
 data_file = .coverage
 timid = False
@@ -13,7 +13,7 @@ exclude_lines =
 precision = 0
 show_missing = True
 omit =
-    jackfrost/test_*
+    staticpub/test_*
 
 [xml]
 output = coverage.xml

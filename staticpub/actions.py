@@ -4,9 +4,9 @@ from django.core.exceptions import PermissionDenied
 from django.template.response import TemplateResponse
 from django.utils.encoding import force_str
 from django.utils.translation import gettext_lazy as _
-from jackfrost.models import ModelRenderer
-from jackfrost.models import URLReader
-from jackfrost.models import URLWriter
+from staticpub.models import ModelProducer
+from staticpub.models import URLReader
+from staticpub.models import URLWriter
 
 
 def build_selected(modeladmin, request, queryset):
@@ -22,11 +22,11 @@ def build_selected(modeladmin, request, queryset):
         if not modeladmin.has_change_permission(request=request, obj=obj):
             raise PermissionDenied("You don't have permission to change %s" % obj.pk)
 
-    class PseudoModelRenderer(ModelRenderer):
+    class PseudoModelProducer(ModelProducer):
         def get_paginated_queryset(self):
             return queryset
 
-    instance_urls = PseudoModelRenderer()()
+    instance_urls = PseudoModelProducer()()
     if request.POST.get("post"):
         # If ever there were proof I over-engineered the API and should
         # backtrack at some point ... this would be it.
@@ -73,7 +73,7 @@ def build_selected(modeladmin, request, queryset):
         or [
             "admin/%s/%s/build_selected_confirmation.html" % (app_label, model_name),
             "admin/%s/build_selected_confirmation.html" % app_label,
-            "jackfrost/build_selected_confirmation.html",
+            "staticpub/build_selected_confirmation.html",
         ],
         context,
     )

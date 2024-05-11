@@ -1,12 +1,13 @@
-from jackfrost.defaults import JackfrostFilesStorage
 import os
 from shutil import rmtree
+from unittest.mock import patch
 from django.conf import settings
 from django.urls import reverse, clear_script_prefix
 from django.test.utils import override_settings
-from jackfrost.models import URLReader
-from jackfrost.models import ReadResult
-from jackfrost.models import URLWriter
+from staticpub.defaults import StaticpubFilesStorage
+from staticpub.models import URLReader
+from staticpub.models import ReadResult
+from staticpub.models import URLWriter
 
 
 def test_repr_short():
@@ -15,7 +16,7 @@ def test_repr_short():
         for x in range(2)
     ]
     reader = URLWriter(data=reads)
-    assert repr(reader) == '<jackfrost.models.URLWriter data=("/0/", "/1/")>'
+    assert repr(reader) == '<staticpub.models.URLWriter data=("/0/", "/1/")>'
 
 
 def test_repr_long():
@@ -26,14 +27,16 @@ def test_repr_long():
     reader = URLWriter(data=reads)
     assert (
         repr(reader)
-        == '<jackfrost.models.URLWriter data=("/0/", "/1/", "/2/" ... 1 remaining)>'
+        == '<staticpub.models.URLWriter data=("/0/", "/1/", "/2/" ... 1 remaining)>'
     )  # noqa
 
 
 def test_get_storage():
     writer = URLWriter(data=None)
-    assert isinstance(writer.storage, JackfrostFilesStorage) is True
-    assert writer.storage.location == os.path.join(settings.BASE_DIR, "__jackfrost")
+    assert isinstance(writer.storage, StaticpubFilesStorage) is True
+    assert writer.storage.location == os.path.join(
+        settings.BASE_DIR, "var", "staticpub"
+    )
 
 
 def test_build():
@@ -45,13 +48,14 @@ def test_build():
     )
     read_results = tuple(reader())
     NEW_STATIC_ROOT = os.path.join(
-        settings.BASE_DIR, "test_collectstatic", "urlwriter", "build"
+        settings.BASE_DIR, "var", "test_collectstatic", "urlwriter", "build"
     )
     rmtree(path=NEW_STATIC_ROOT, ignore_errors=True)
     writer = URLWriter(data=read_results)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         storage = writer.storage
-    output = writer()
+        output = writer()
+
     files_saved = []
     for built in output:
         files_saved.append(built.storage_result)
@@ -65,6 +69,7 @@ def test_build():
 def test_build_with_force_script_name():
     NEW_STATIC_ROOT = os.path.join(
         settings.BASE_DIR,
+        "var",
         "test_collectstatic",
         "urlwriter",
         "build_with_force_script_name",
@@ -79,8 +84,9 @@ def test_build_with_force_script_name():
         )
         read_results = tuple(reader())
         writer = URLWriter(data=read_results)
+        with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
+            output = writer()
         storage = writer.storage
-        output = writer()
         files_saved = []
         for built in output:
             files_saved.append(built.storage_result)
@@ -101,13 +107,13 @@ def test_write_single_item():
     writer = URLWriter(data=read_results)
 
     NEW_STATIC_ROOT = os.path.join(
-        settings.BASE_DIR, "test_collectstatic", "urlwriter", "write_single_item"
+        settings.BASE_DIR, "var", "test_collectstatic", "urlwriter", "write_single_item"
     )
     rmtree(path=NEW_STATIC_ROOT, ignore_errors=True)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
+        output = writer.write(read_results[0])
         storage = writer.storage
 
-    output = writer.write(read_results[0])
     assert output.md5 == "f8ee7c48dfd7f776b3d011950a5c02d1"
     assert output.created is True
     assert output.modified is True

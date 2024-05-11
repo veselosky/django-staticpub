@@ -18,7 +18,7 @@ The building happens in discrete phases:
 * A ``URLCollector`` instance calls a set of *renderers* and reads their
   results into a single collection of URLs.
 
-  * By default, the list of renderers is taken from ``settings.JACKFROST_RENDERERS``
+  * By default, the list of renderers is taken from ``settings.STATICPUB_PRODUCERS``
 
 * A ``URLReader`` takes a set of URLs, and reads each URL to get it's content,
   which it keeps in memory to provide to the ``URLWriter``

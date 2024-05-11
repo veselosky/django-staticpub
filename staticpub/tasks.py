@@ -1,16 +1,11 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
 from django.core.exceptions import ImproperlyConfigured
-from jackfrost.models import collect, read, write
+from staticpub.models import collect, read, write
 
 try:
     from celery import shared_task
     from celery import group
 except ImportError:
-    raise ImproperlyConfigured("You need `celery` installed to use the "
-                               "tasks here")
+    raise ImproperlyConfigured("You need `celery` installed to use the " "tasks here")
 
 
 @shared_task

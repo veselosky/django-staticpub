@@ -1,15 +1,16 @@
 from contextlib import contextmanager
 from shutil import rmtree
+from unittest.mock import patch
 from django.conf import settings
 from django.test.utils import override_settings
 from django.utils.encoding import force_bytes
-from jackfrost.models import URLWriter
+from staticpub.models import URLWriter
 import os
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.db.models.signals import pre_save
 from django.db.models.signals import post_save
-from jackfrost.receivers import build_page_for_obj
+from staticpub.receivers import build_page_for_obj
 import pytest
 
 
@@ -38,25 +39,23 @@ def test_using_as_presave():
 
     user = UserPresaveProxy.objects.create(username="whee")
     NEW_STATIC_ROOT = os.path.join(
-        settings.BASE_DIR, "test_collectstatic", "utils", "using_as_presave"
+        settings.BASE_DIR, "var", "test_collectstatic", "utils", "using_as_presave"
     )
     rmtree(path=NEW_STATIC_ROOT, ignore_errors=True)
 
     # this is a bit hoop-jumpy ;/
     url = "%s/index.html" % user.get_absolute_url()[1:]
     writer = URLWriter(data=None)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         storage = writer.storage
-    with pytest.raises(IOError):
-        storage.open(url)
-
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+        with pytest.raises(IOError):
+            storage.open(url)
         with tidying_signal(cls=UserPresaveProxy, signal=pre_save):
             user.save()
 
-    url = "%s/index.html" % user.get_absolute_url()[1:]
-    data = storage.open(url).readlines()
-    assert data == [force_bytes(user.pk)]
+        url = "%s/index.html" % user.get_absolute_url()[1:]
+        data = storage.open(url).readlines()
+        assert data == [force_bytes(user.pk)]
 
 
 @pytest.mark.django_db
@@ -70,31 +69,29 @@ def test_using_as_postsave():
 
     user = UserPostsaveProxy.objects.create(username="whee")
     NEW_STATIC_ROOT = os.path.join(
-        settings.BASE_DIR, "test_collectstatic", "utils", "using_as_postsave"
+        settings.BASE_DIR, "var", "test_collectstatic", "utils", "using_as_postsave"
     )
     rmtree(path=NEW_STATIC_ROOT, ignore_errors=True)
 
     # this is a bit hoop-jumpy ;/
     url = "%s/index.html" % user.get_absolute_url()[1:]
     writer = URLWriter(data=None)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         storage = writer.storage
-    with pytest.raises(IOError):
-        storage.open(url)
-
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+        with pytest.raises(IOError):
+            storage.open(url)
         with tidying_signal(cls=UserPostsaveProxy, signal=post_save):
             user.save()
 
-    url = "%s/index.html" % user.get_absolute_url()[1:]
-    data = storage.open(url).readlines()
-    assert data == [force_bytes(user.pk)]
+        url = "%s/index.html" % user.get_absolute_url()[1:]
+        data = storage.open(url).readlines()
+        assert data == [force_bytes(user.pk)]
 
 
 @pytest.mark.django_db
 def test_using_as_presave_but_cannot_build():
     class UserPostsaveCannotBuild(get_user_model()):
-        def jackfrost_can_build(self):
+        def staticpub_can_build(self):
             return False
 
         def get_absolute_url(self):
@@ -106,6 +103,7 @@ def test_using_as_presave_but_cannot_build():
     user = UserPostsaveCannotBuild.objects.create(username="presave_but_cannot_build")  # noqa
     NEW_STATIC_ROOT = os.path.join(
         settings.BASE_DIR,
+        "var",
         "test_collectstatic",
         "utils",
         "using_as_presave_but_cannot_build",
@@ -115,15 +113,13 @@ def test_using_as_presave_but_cannot_build():
     # this is a bit hoop-jumpy ;/
     url = "%s/index.html" % user.get_absolute_url()[1:]
     writer = URLWriter(data=None)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         storage = writer.storage
-    with pytest.raises(IOError):
-        storage.open(url)
-
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+        with pytest.raises(IOError):
+            storage.open(url)
         with tidying_signal(cls=UserPostsaveCannotBuild, signal=pre_save):
             user.save()
 
-    # Should still error because we didn't build it ...
-    with pytest.raises(IOError):
-        storage.open(url)
+        # Should still error because we didn't build it ...
+        with pytest.raises(IOError):
+            storage.open(url)

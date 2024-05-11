@@ -18,9 +18,9 @@ dependencies = ["django>=4.2"]
 dynamic = ["version"]
 
 [tool.setuptools.dynamic]
-version = { attr = "jackfrost.version" }
+version = { attr = "staticpub.version" }
 # ... other project metadata fields as listed in:
 #     https://packaging.python.org/en/latest/guides/writing-pyproject-toml/
 
 [tool.setuptools.packages.find]
-include = ["jackfrost", "jackfrost.*"]
+include = ["staticpub", "staticpub.*"]

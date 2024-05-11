@@ -1,9 +1,10 @@
+from unittest.mock import patch
 from django.contrib import admin
 from django.test import Client
 from django.test.utils import override_settings
 from django.utils.encoding import force_bytes, force_str
-from jackfrost.actions import build_selected
-from jackfrost.models import URLWriter
+from staticpub.actions import build_selected
+from staticpub.models import URLWriter
 import os
 from shutil import rmtree
 from django.conf import settings
@@ -47,26 +48,27 @@ def test_actions_build_selected_post():
 
         class Meta:
             proxy = True
+            ordering = ["pk"]
 
     user = UserActionPOSTProxy.objects.create(username="whee", is_superuser=True)
     NEW_STATIC_ROOT = os.path.join(
-        settings.BASE_DIR, "test_collectstatic", "actions", "build_selected_post"
+        settings.BASE_DIR, "var", "test_collectstatic", "actions", "build_selected_post"
     )
     rmtree(path=NEW_STATIC_ROOT, ignore_errors=True)
 
     # this is a bit hoop-jumpy ;/
     url = "%s/index.html" % user.get_absolute_url()[1:]
     writer = URLWriter(data=None)
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         storage = writer.storage
-    with pytest.raises(IOError):
-        storage.open(url)
+        with pytest.raises(IOError):
+            storage.open(url)
 
     madmin = admin.site._registry[get_user_model()]
     resp = Client().post("/", data={"post": "1"})
     request = resp.wsgi_request
     request.user = user
-    with override_settings(BASE_DIR=NEW_STATIC_ROOT):
+    with patch.object(writer.storage, "location", NEW_STATIC_ROOT):
         do_stuff = build_selected(
             modeladmin=madmin,
             request=request,
@@ -74,6 +76,6 @@ def test_actions_build_selected_post():
         )
         assert do_stuff is None
 
-    url = "%s/index.html" % user.get_absolute_url()[1:]
-    data = storage.open(url).readlines()
-    assert data == [force_bytes(user.pk)]
+        url = "%s/index.html" % user.get_absolute_url()[1:]
+        data = storage.open(url).readlines()
+        assert data == [force_bytes(user.pk)]

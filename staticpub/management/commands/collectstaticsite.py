@@ -2,7 +2,6 @@ from collections import namedtuple
 
 from itertools import chain
 import multiprocessing
-from datetime import datetime
 import sys
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
@@ -11,16 +10,17 @@ from django.core.management import CommandError
 from django.core.management.base import OutputWrapper
 from django.test.utils import override_settings
 from django.utils.encoding import force_str
+from django.utils import timezone
 
-from jackfrost.models import (
+from staticpub.models import (
     URLCollector,
     URLReader,
     URLWriter,
     ErrorReader,
     CollectionError,
 )
-from jackfrost.signals import build_started
-from jackfrost.signals import build_finished
+from staticpub.signals import build_started
+from staticpub.signals import build_finished
 
 
 def multiprocess_reader(urls, stdout=None):
@@ -49,7 +49,6 @@ def multiprocess_writer(data, stdout=None):
 class FakeURLConf(namedtuple("FakeURLConf", "urlpatterns")):
     def __repr__(self):
         return "<%(cls)s [%(count)d]>" % {
-            "mod": self.__module__,
             "cls": self.__class__.__name__,
             "count": len(self.urlpatterns),
         }
@@ -58,34 +57,6 @@ class FakeURLConf(namedtuple("FakeURLConf", "urlpatterns")):
 class Command(BaseCommand):
     help = "Collect Django views into a static folder beneath a static files storage"  # noqa
     requires_system_checks = []
-
-    def add_arguments(self, parser):
-        parser.add_argument(
-            "--noinput",
-            action="store_false",
-            dest="interactive",
-            default=True,
-            help="Do NOT prompt the user for input of any kind.",
-        )
-        parser.add_argument(
-            "--processes",
-            action="store",
-            dest="processes",
-            default=1,
-            type=int,
-            help="Number of processes to spawn",
-        )
-        parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            dest="dry_run",
-            default=False,
-            help="Read all files and run the preview server",
-        )
-
-    @property
-    def use_argparse(self):
-        return True
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -154,11 +125,11 @@ class Command(BaseCommand):
 
         if not collected_urls:
             raise CommandError(
-                "No URLs found after running all defined `JACKFROST_RENDERERS`"
+                "No URLs found after running all defined `STATICPUB_PRODUCERS`"
             )
 
         build_started.send(sender=self.__class__)
-        reading_started = datetime.utcnow()
+        reading_started = timezone.now()
 
         if self.multiprocess:  # pragma: no cover
             reader_pool = multiprocessing.Pool(processes=self.processes)
@@ -175,7 +146,7 @@ class Command(BaseCommand):
                 urls=collected_urls, stdout=self.stdout._out
             )
 
-        reading_finished = datetime.utcnow()
+        reading_finished = timezone.now()
         reading_duration = reading_finished - reading_started
 
         self.stdout.write(
@@ -192,9 +163,9 @@ class Command(BaseCommand):
 
         message = ["\n"]
         message.append(
-            "You have requested to collect all defined `JACKFROST_RENDERERS` "
+            "You have requested to collect all defined `STATICPUB_PRODUCERS` "
             "at the destination\n"
-            "location as specified in your settings via `JACKFROST_STORAGE`\n"
+            "location as specified in your settings via `STORAGES['staticpub']`\n"
         )
         message.append(
             "Are you sure you want to do this?\n\n" "Type 'yes' or 'y' to continue: "
@@ -202,7 +173,7 @@ class Command(BaseCommand):
         if self.interactive and input("".join(message)).lower() not in ("yes", "y"):
             raise CommandError("Collecting cancelled.")
 
-        writing_started = datetime.utcnow()
+        writing_started = timezone.now()
         if self.multiprocess:  # pragma: no cover
             writer_pool = multiprocessing.Pool(self.processes)
             # noinspection PyUnboundLocalVariable
@@ -221,7 +192,7 @@ class Command(BaseCommand):
             data=error_results, stdout=self.stdout._out
         )
 
-        writing_finished = datetime.utcnow()
+        writing_finished = timezone.now()
         writing_duration = writing_finished - writing_started
 
         all_written = tuple(chain(write_results, written_errors))

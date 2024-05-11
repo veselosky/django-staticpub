@@ -3,9 +3,10 @@ import hashlib
 import logging
 from mimetypes import guess_extension
 
-from django.urls import re_path as url
+from django.urls import re_path
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
+from django.core.files.storage import storages
 from django.http import HttpResponse, StreamingHttpResponse
 from django.template import TemplateDoesNotExist
 from django.template.loader import render_to_string
@@ -15,13 +16,13 @@ from django.utils.http import url_has_allowed_host_and_scheme as is_safe_url
 
 # noinspection PyUnresolvedReferences
 from urllib.parse import urlparse
-from jackfrost.signals import reader_started
-from jackfrost.signals import read_page
-from jackfrost.signals import reader_finished
-from jackfrost.signals import writer_started
-from jackfrost.signals import write_page
-from jackfrost.signals import writer_finished
-from jackfrost.utils import is_url_usable
+from staticpub.signals import reader_started
+from staticpub.signals import read_page
+from staticpub.signals import reader_finished
+from staticpub.signals import writer_started
+from staticpub.signals import write_page
+from staticpub.signals import writer_finished
+from staticpub.utils import is_url_usable
 from os.path import splitext
 
 try:
@@ -31,7 +32,7 @@ except ImportError:  # pragma: no cover
 from django.conf import settings
 from django.core.paginator import Paginator
 from django.test.client import Client
-from jackfrost import defaults
+from staticpub import defaults
 from posixpath import normpath
 
 
@@ -40,10 +41,10 @@ __all__ = [
     "URLReader",
     "ErrorReader",
     "URLWriter",
-    "ModelRenderer",
-    "SitemapRenderer",
-    "MedusaRenderer",
-    "FeedRenderer",
+    "ModelProducer",
+    "SitemapProducer",
+    "MedusaProducer",
+    "FeedProducer",
 ]
 logger = logging.getLogger(__name__)
 
@@ -63,10 +64,10 @@ class ReadResult(namedtuple("ReadResult", "url filename status content")):
         return StreamingHttpResponse(streaming_content=self.content, status=self.status)
 
     def as_urls(self):
-        yield url(
+        yield re_path(
             regex=r"^{url}$".format(url=self.url[1:]), name=None, view=self.as_response
         )
-        yield url(
+        yield re_path(
             regex=r"^{url}$".format(url=self.filename), name=None, view=self.as_response
         )
 
@@ -138,7 +139,7 @@ class URLReader(object):
     def content_types(self):
         if self._content_types is None:
             self._content_types = getattr(
-                settings, "JACKFROST_CONTENT_TYPES", defaults.JACKFROST_CONTENT_TYPES
+                settings, "STATICPUB_CONTENT_TYPES", defaults.STATICPUB_CONTENT_TYPES
             )
         return self._content_types
 
@@ -177,7 +178,7 @@ class URLReader(object):
         )
 
     def build_page(self, url):
-        resp = self.client.get(url, follow=True, **{"HTTP_USER_AGENT": "jackfrost"})
+        resp = self.client.get(url, follow=True, **{"HTTP_USER_AGENT": "staticpub"})
         assert resp.status_code == 200, "Got %(code)d response for %(url)s" % {
             "code": resp.status_code,
             "url": url,
@@ -267,11 +268,11 @@ class ErrorReader(object):
 
 
 class URLWriter(object):
-    __slots__ = ("data", "_storage")
+    __slots__ = ("data", "storage")
 
     def __init__(self, data):
         self.data = data
-        self._storage = None
+        self.storage = storages["staticpub"]
 
     def __repr__(self):
         num = len(self.data)
@@ -288,20 +289,9 @@ class URLWriter(object):
             "urls": urls % {"top3": urls_themselves, "more": remaining},
         }
 
-    @property
-    def storage(self):
-        if self._storage is None:
-            storage = getattr(settings, "JACKFROST_STORAGE", defaults.JACKFROST_STORAGE)
-            kwargs = getattr(
-                settings, "JACKFROST_STORAGE_KWARGS", defaults.JACKFROST_STORAGE_KWARGS
-            )
-            storage_cls = import_string(storage)
-            self._storage = storage_cls(**kwargs)
-        return self._storage
-
     def write(self, data):
         """
-        :type data: jackfrost.models.ReadResult
+        :type data: staticpub.models.ReadResult
         """
         name = data.filename
         content = force_bytes(data.content)
@@ -340,32 +330,32 @@ class URLWriter(object):
 
 class URLCollector(object):
     """
-    >>> x = URLCollector(renderers=['a.b.C', DEF])
+    >>> x = URLCollector(producers=['a.b.C', DEF])
     >>> urls = x()
     ('/', '/a/b/', '/c/')
     """
 
-    __slots__ = ("renderers",)
+    __slots__ = ("producers",)
 
-    def __init__(self, renderers=None):
+    def __init__(self, producers=None):
         # TODO: figure out prefix necessities
         # url_prefix = getattr(settings, 'JACKFROST_SCRIPT_PREFIX', None)
         # if url_prefix is not None:
         #     set_script_prefix(url_prefix)
-        self.renderers = frozenset(self.get_renderers(renderers=renderers))
+        self.producers = frozenset(self.get_producers(producers=producers))
 
     def __repr__(self):
-        return "<%(mod)s.%(cls)s renderers=%(renderers)r>" % {
+        return "<%(mod)s.%(cls)s producers=%(producers)r>" % {
             "mod": self.__module__,
             "cls": self.__class__.__name__,
-            "renderers": self.renderers,
+            "producers": self.producers,
         }
 
     def is_sitemap(self, cls):
         attrs = ("limit", "protocol", "items", "get_urls")
         return all(hasattr(cls, x) for x in attrs)
 
-    def is_medusa_renderer(self, cls):
+    def is_medusa_producer(self, cls):
         attrs = ("get_paths", "generate")
         return all(hasattr(cls, x) for x in attrs)
 
@@ -373,46 +363,46 @@ class URLCollector(object):
         attrs = ("get_feed", "feed_type")
         return all(hasattr(cls, x) for x in attrs)
 
-    def get_renderers(self, renderers=None):
-        if renderers is None:
+    def get_producers(self, producers=None):
+        if producers is None:
             try:
-                renderers = settings.JACKFROST_RENDERERS
+                producers = settings.STATICPUB_PRODUCERS
             except AttributeError:
                 raise ImproperlyConfigured(
-                    "You have not set `JACKFROST_RENDERERS` in your "
+                    "You have not set `STATICPUB_PRODUCERS` in your "
                     "project's settings"
                 )
-        for renderer in renderers:
-            if isinstance(renderer, str):
-                renderer_cls = import_string(renderer)
+        for producer in producers:
+            if isinstance(producer, str):
+                producer_cls = import_string(producer)
             else:
-                renderer_cls = renderer
+                producer_cls = producer
 
-            if self.is_sitemap(cls=renderer_cls):
-                renderer_cls = SitemapRenderer(cls=renderer_cls)
-            elif self.is_medusa_renderer(cls=renderer_cls):
-                renderer_cls = MedusaRenderer(cls=renderer_cls)
-            elif self.is_feed(cls=renderer_cls):
-                renderer_cls = FeedRenderer(cls=renderer_cls)
-            yield renderer_cls
+            if self.is_sitemap(cls=producer_cls):
+                producer_cls = SitemapProducer(cls=producer_cls)
+            elif self.is_medusa_producer(cls=producer_cls):
+                producer_cls = MedusaProducer(cls=producer_cls)
+            elif self.is_feed(cls=producer_cls):
+                producer_cls = FeedProducer(cls=producer_cls)
+            yield producer_cls
 
     def get_urls(self):
         urls = set()
-        for renderer in self.renderers:
-            _cls_or_func_result = renderer()
+        for producer in self.producers:
+            _cls_or_func_result = producer()
             # if it was a class, we still need to call __call__
             if callable(_cls_or_func_result):
                 _cls_or_func_result = _cls_or_func_result()
-            # ensure it's evaluated, incase the renderer is a generator which
+            # ensure it's evaluated, incase the producer is a generator which
             # doesn't wrap itself ...
             for url in _cls_or_func_result:
                 current_url = force_str(url)
                 if not is_url_usable(url=current_url):
                     raise CollectionError(
-                        "Renderer %(renderer)s provided the URL '%(url)s' "
+                        "Producer %(producer)s provided the URL '%(url)s' "
                         "which does not end in a forward-slash ('/'), nor "
                         "does it have a file extension."
-                        % {"renderer": renderer, "url": current_url}
+                        % {"producer": producer, "url": current_url}
                     )
                 urls.add(current_url)
         return urls
@@ -421,8 +411,8 @@ class URLCollector(object):
         return self.get_urls()
 
 
-def collect(renderers=None):
-    return URLCollector(renderers=renderers)()
+def collect(producers=None):
+    return URLCollector(producers=producers)()
 
 
 def read(urls):
@@ -441,7 +431,7 @@ class ChunkingPaginator(Paginator):
                 yield obj
 
 
-class ModelRenderer(object):
+class ModelProducer(object):
     """
     If you just want to render a queryset out, and the model has
     appropriate methods, just subclass this ...
@@ -453,7 +443,10 @@ class ModelRenderer(object):
         raise NotImplementedError("You need to override this ")
 
     def get_queryset(self):
-        return self.get_model().objects.all()
+        model = self.get_model()
+        if hasattr(model.Meta, "ordering"):
+            return model.objects.all()
+        return self.get_model().objects.all().order_by("id")
 
     def get_paginated_queryset(self):
         """
@@ -467,12 +460,12 @@ class ModelRenderer(object):
     def _get_urls(self):
         for obj in self.get_paginated_queryset():
             # on the off-chance the app knows it may want to not build things...
-            if hasattr(obj, "jackfrost_can_build"):
-                if obj.jackfrost_can_build() is False:
+            if hasattr(obj, "staticpub_can_build"):
+                if obj.staticpub_can_build() is False:
                     continue
 
-            if hasattr(obj, "jackfrost_urls"):
-                for jf_url in obj.jackfrost_urls():
+            if hasattr(obj, "staticpub_urls"):
+                for jf_url in obj.staticpub_urls():
                     yield jf_url
             elif hasattr(obj, "get_absolute_url"):
                 yield obj.get_absolute_url()
@@ -488,10 +481,10 @@ class ModelRenderer(object):
         return frozenset(self.get_urls())
 
 
-class SitemapRenderer(object):
+class SitemapProducer(object):
     """
     Given a standard Django Sitemap class, this exposes enough functionality
-    to be a renderer of the URLs represented by the Sitemap's location() method.
+    to be a producer of the URLs represented by the Sitemap's location() method.
     """
 
     __slots__ = ("sitemap_cls",)
@@ -519,7 +512,7 @@ class SitemapRenderer(object):
         return frozenset(self.get_urls())
 
 
-class MedusaRenderer(object):
+class MedusaProducer(object):
     __slots__ = ("medusa_cls",)
 
     def __init__(self, cls):
@@ -539,7 +532,7 @@ class MedusaRenderer(object):
         return frozenset(self.get_urls())
 
 
-class FeedRenderer(object):
+class FeedProducer(object):
     __slots__ = ("feed_cls",)
 
     def __init__(self, cls):

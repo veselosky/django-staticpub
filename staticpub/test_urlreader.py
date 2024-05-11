@@ -2,32 +2,32 @@ from django.urls import reverse
 from django.utils.encoding import force_bytes
 from django.test.client import Client
 from django.test.utils import override_settings
-from jackfrost import defaults
-from jackfrost.models import URLReader, ReaderError
+from staticpub import defaults
+from staticpub.models import URLReader, ReaderError
 import pytest
 
 
 def test_get_content_types_mapping():
     reader = URLReader(urls=())
-    assert reader.content_types == defaults.JACKFROST_CONTENT_TYPES
+    assert reader.content_types == defaults.STATICPUB_CONTENT_TYPES
 
 
 def test_repr_short():
     reader = URLReader(urls=("/a/", "/b/"))
-    assert repr(reader) == '<jackfrost.models.URLReader urls=["/a/", "/b/"]>'
+    assert repr(reader) == '<staticpub.models.URLReader urls=["/a/", "/b/"]>'
 
 
 def test_repr_long():
     reader = URLReader(urls=("/a/", "/b/", "/c/", "/d/", "/e/"))
     assert (
         repr(reader)
-        == '<jackfrost.models.URLReader urls=["/a/", "/b/", "/c/" ... 2 remaining]>'
+        == '<staticpub.models.URLReader urls=["/a/", "/b/", "/c/" ... 2 remaining]>'
     )  # noqa
 
 
 def test_get_content_types_mapping_overrides():
     reader = URLReader(urls=())
-    with override_settings(JACKFROST_CONTENT_TYPES={}):
+    with override_settings(STATICPUB_CONTENT_TYPES={}):
         assert reader.content_types == {}
 
 

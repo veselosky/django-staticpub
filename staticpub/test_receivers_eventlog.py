@@ -1,19 +1,14 @@
-# -*- coding: utf-8 -*-
-from __future__ import absolute_import
-from __future__ import print_function
-from __future__ import unicode_literals
-from __future__ import division
 from contextlib import contextmanager
 import django
-from jackfrost.receivers import eventlog_write
-from jackfrost.signals import write_page
+from staticpub.receivers import eventlog_write
+from staticpub.signals import write_page
 import pytest
 from django.urls import reverse
 
 pytestmark = pytest.mark.xfail(
     django.VERSION[:2] < (1, 7), reason="requires Django 1.7 to use the appconfig"
 )  # noqa
-from jackfrost.models import URLReader, URLWriter
+from staticpub.models import URLReader, URLWriter
 from pinax.eventlog.models import Log
 
 
@@ -32,7 +27,7 @@ def test_eventlog_fires():
     from django.test import modify_settings
 
     with modify_settings(
-        INSTALLED_APPS={"remove": ["jackfrost"], "append": ["pinax.eventlog"]}
+        INSTALLED_APPS={"remove": ["staticpub"], "append": ["pinax.eventlog"]}
     ):
         reader = URLReader(urls=[reverse("content_b")])
         read_results = tuple(reader())
