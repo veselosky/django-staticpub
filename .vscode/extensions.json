@@ -1,8 +1,8 @@
 {
   "recommendations": [
     "batisteo.vscode-django",
-    "monosans.djlint",
     "ms-python.python",
-    "charliermarsh.ruff"
+    "charliermarsh.ruff",
+    "monosans.djlint"
   ]
 }
