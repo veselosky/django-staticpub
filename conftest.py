@@ -1,9 +1,13 @@
+import os
+from pathlib import Path
 import django
 from django.conf import settings
-import os
 
-
-HERE = os.path.realpath(os.path.dirname(__file__))
+BASE_DIR = Path(__file__).resolve().parent
+VAR_DIR = BASE_DIR.joinpath("var")
+VAR_DIR.mkdir(exist_ok=True, parents=True)
+VAR_DIR.joinpath("staticpub").mkdir(exist_ok=True, parents=True)
+VAR_DIR.joinpath("test_collectstatic").mkdir(exist_ok=True, parents=True)
 
 
 def pytest_configure():
@@ -19,7 +23,7 @@ def pytest_configure():
                 "django.contrib.admin",
                 "django.contrib.contenttypes",
                 "django.contrib.messages",
-                "jackfrost",
+                "staticpub",
                 "pinax.eventlog",
             ),
             # these are the default in 1.8, so we should make sure we
@@ -33,22 +37,36 @@ def pytest_configure():
                 "django.contrib.messages.middleware.MessageMiddleware",
                 "django.middleware.clickjacking.XFrameOptionsMiddleware",
             ),
-            BASE_DIR=HERE,
+            BASE_DIR=BASE_DIR,
             SECRET_KEY="testing_only",
             SITE_ID=1,
             STATIC_URL="/__s__/",
-            STATIC_ROOT=os.path.join(HERE, "test_collectstatic"),
+            STATIC_ROOT=VAR_DIR / "test_collectstatic",
             ROOT_URLCONF="test_urls",
             TEMPLATES=[
                 {
                     "BACKEND": "django.template.backends.django.DjangoTemplates",
                     "APP_DIRS": True,
-                    "DIRS": [os.path.join(HERE, "test_templates")],
+                    "DIRS": [BASE_DIR / "test_templates"],
                 },
             ],
             PASSWORD_HASHERS=("django.contrib.auth.hashers.MD5PasswordHasher",),
             CELERY_TASK_ALWAYS_EAGER=True,
             CELERY_TASK_EAGER_PROPAGATES=True,
+            STORAGES={
+                "default": {
+                    "BACKEND": "django.core.files.storage.FileSystemStorage",
+                    "LOCATION": VAR_DIR / "demo_project",
+                },
+                "staticpub": {
+                    "BACKEND": "staticpub.defaults.StaticpubFilesStorage",
+                    "LOCATION": VAR_DIR / "staticpub",
+                },
+                "staticfiles": {
+                    "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+                    "LOCATION": VAR_DIR / "test_collectstatic",
+                },
+            },
         )
     if hasattr(django, "setup"):
         django.setup()

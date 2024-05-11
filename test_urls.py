@@ -18,8 +18,8 @@ from django.shortcuts import render
 from django.utils.encoding import force_str
 from django.views.decorators.http import require_http_methods
 from django.contrib.sitemaps.views import sitemap
-from jackfrost.actions import build_selected
-from jackfrost.models import ModelRenderer
+from staticpub.actions import build_selected
+from staticpub.models import ModelProducer
 
 
 User.get_absolute_url = lambda x: reverse("show_user", kwargs={"pk": x.pk})
@@ -30,14 +30,14 @@ class UserSitemap(Sitemap):
     changefreq = "never"
 
     def items(self):
-        return get_user_model().objects.all()
+        return get_user_model().objects.all().order_by("id")
 
 
-class UserListRenderer(ModelRenderer):
+class UserListProducer(ModelProducer):
     def get_urls(self):
         for obj in get_user_model().objects.all():
             yield reverse("show_user", kwargs={"pk": obj.pk})
-        paginator = Paginator(get_user_model().objects.all(), 5)
+        paginator = Paginator(get_user_model().objects.all().order_by("id"), 5)
         for page in paginator.page_range:
             yield reverse("users", kwargs={"page": page})
         yield reverse("users")
@@ -66,7 +66,7 @@ def show_user(request, pk):
 
 @require_http_methods(["GET"])
 def users(request, page=1):
-    paginator = Paginator(get_user_model().objects.all(), 5)
+    paginator = Paginator(get_user_model().objects.all().order_by("id"), 5)
     try:
         page = paginator.page(page)
     except InvalidPage as e:
