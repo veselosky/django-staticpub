@@ -1,6 +1,10 @@
 # Change log
 
-## ?next?
+## 0.5.0
+
+- Forked from `django-jackfrost` and renamed `staticpub`.
+
+## Unreleased Jackfrost changes
 
 - Added a `--dry-run` argument to the `collectstaticsite` management command to preview
   changes using the standard Django server, without writing anything to the storage
