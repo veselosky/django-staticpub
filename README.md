@@ -184,6 +184,7 @@ configurations with `tox run`.
 [django-distill]: https://django-distill.com/
 [django-freeze]: https://pypi.org/project/django-freeze/
 [django-bakery]: http://django-bakery.readthedocs.org/en/latest/
+[django-jackfrost]: https://github.com/kezabelle/django-jackfrost
 [staticfiles]: https://docs.djangoproject.com/en/stable/ref/contrib/staticfiles/
 [Django]: https://docs.djangoproject.com/en/stable/
 [django-storages]: https://django-storages.readthedocs.org/en/latest/
